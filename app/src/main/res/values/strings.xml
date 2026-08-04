@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">想法捕捉</string>
+    <string name="tile_label">快速记录</string>
+    <string name="tab_capture">捕捉</string>
+    <string name="tab_inbox">收件箱</string>
+    <string name="tab_plan">计划</string>
+    <string name="widget_description">快速记录想法</string>
+</resources>

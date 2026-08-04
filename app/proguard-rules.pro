@@ -1,0 +1,1 @@
+# ThoughtCapture ProGuard Rules
