@@ -164,8 +164,23 @@ fun DetailScreen(
                 )
             }
 
-            // 已处理时的 Agent 回复区域
+            // Agent 回复区域
             if (entryData.status == "processed") {
+                // 从 Git 仓库查找回复文件
+                val replyContent = remember(entryData.id) {
+                    val repoDir = app.gitSync.getRepoDir()
+                    val processedDir = java.io.File(repoDir, "processed")
+                    var reply: String? = null
+                    if (processedDir.exists()) {
+                        processedDir.walkTopDown().forEach { file ->
+                            if (file.name == "${entryData.id}.reply.md") {
+                                reply = file.readText()
+                            }
+                        }
+                    }
+                    reply
+                }
+
                 Spacer(Modifier.height(24.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -181,13 +196,41 @@ fun DetailScreen(
                         containerColor = Color(0xFF8B5CF6).copy(alpha = 0.08f)
                     )
                 ) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("此条目已由 Agent 自动分类整理。",
+                    if (replyContent != null) {
+                        // 简单渲染回复的 Markdown 内容
+                        Column(Modifier.padding(16.dp)) {
+                            replyContent.lines().forEach { line ->
+                                when {
+                                    line.startsWith("# ") -> Text(
+                                        line.removePrefix("# "),
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        modifier = Modifier.padding(vertical = 2.dp)
+                                    )
+                                    line.startsWith("## ") -> Text(
+                                        line.removePrefix("## "),
+                                        fontWeight = FontWeight.SemiBold,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        modifier = Modifier.padding(vertical = 2.dp)
+                                    )
+                                    line.startsWith("|") -> {} // 跳过表格行（简化）
+                                    line.startsWith("- ") -> Text(
+                                        line,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.padding(start = 8.dp)
+                                    )
+                                    line.isBlank() -> Spacer(Modifier.height(4.dp))
+                                    else -> Text(
+                                        line,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        Text("正在等待 Agent 回复…", modifier = Modifier.padding(16.dp),
                             style = MaterialTheme.typography.bodyMedium)
-                        Spacer(Modifier.height(6.dp))
-                        Text("💬 如需查看完整回复，请在 Claude Code 对话中查看处理结果。",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
