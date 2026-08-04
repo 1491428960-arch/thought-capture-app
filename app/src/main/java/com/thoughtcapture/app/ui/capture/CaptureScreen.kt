@@ -4,8 +4,11 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -13,7 +16,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -54,118 +59,211 @@ fun CaptureScreen(
         uri?.let { viewModel.onMediaSelected(it, "photo") }
     }
 
+    // 保存成功动画
     LaunchedEffect(uiState.saveSuccess) {
         if (uiState.saveSuccess) {
-            Toast.makeText(context, "已保存", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "✨ 已保存", Toast.LENGTH_SHORT).show()
             viewModel.clearSuccess()
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(16.dp)
-    ) {
-        Text(
-            text = "新想法",
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        OutlinedTextField(
-            value = uiState.textInput,
-            onValueChange = viewModel::onTextChanged,
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 160.dp),
-            placeholder = { Text("写下或说出你的想法…") },
-            maxLines = 10
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        uiState.mediaUri?.let { uri ->
-            Box(modifier = Modifier.fillMaxWidth().height(200.dp)) {
-                AsyncImage(
-                    model = uri,
-                    contentDescription = "预览",
-                    modifier = Modifier.fillMaxSize()
-                )
-                IconButton(
-                    onClick = viewModel::onMediaRemoved,
-                    modifier = Modifier.align(Alignment.TopEnd)
-                ) {
-                    Icon(Icons.Default.Close, "移除图片")
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 20.dp)
+                .padding(top = 20.dp, bottom = 100.dp)
         ) {
-            FilledTonalButton(
-                onClick = {
-                    val helper = VoiceRecognitionHelper(context as android.app.Activity)
-                    scope.launch {
-                        val result = helper.recognize()
-                        if (result != null) {
-                            val current = viewModel.uiState.value.textInput
-                            viewModel.onTextChanged(
-                                if (current.isBlank()) result else "$current\n$result"
-                            )
-                        }
-                    }
-                },
-                enabled = !uiState.isSaving
-            ) {
-                Icon(Icons.Default.Mic, contentDescription = null)
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("语音")
-            }
-
-            FilledTonalButton(
-                onClick = { cameraLauncher.launch(null) },
-                enabled = !uiState.isSaving
-            ) {
-                Icon(Icons.Default.CameraAlt, contentDescription = null)
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("拍照")
-            }
-
-            FilledTonalButton(
-                onClick = { galleryLauncher.launch("image/*") },
-                enabled = !uiState.isSaving
-            ) {
-                Icon(Icons.Default.Image, contentDescription = null)
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("图片")
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Button(
-            onClick = { viewModel.onSave("app") },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !uiState.isSaving && (uiState.textInput.isNotBlank() || uiState.mediaUri != null)
-        ) {
-            if (uiState.isSaving) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    color = MaterialTheme.colorScheme.onPrimary
+            // 标题区
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "💡",
+                    style = MaterialTheme.typography.headlineSmall
                 )
                 Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "新想法",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
             }
-            Text(if (uiState.isSaving) "保存中…" else "保存")
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 输入卡片
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                OutlinedTextField(
+                    value = uiState.textInput,
+                    onValueChange = viewModel::onTextChanged,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 180.dp),
+                    placeholder = { Text("此刻在想什么？写下来…") },
+                    textStyle = MaterialTheme.typography.bodyLarge,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.surface,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.surface,
+                    ),
+                    maxLines = 12
+                )
+            }
+
+            // 图片预览
+            AnimatedVisibility(
+                visible = uiState.mediaUri != null,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                if (uiState.mediaUri != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Box(modifier = Modifier.fillMaxWidth().heightIn(max = 280.dp)) {
+                            AsyncImage(
+                                model = uiState.mediaUri,
+                                contentDescription = "预览",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                            )
+                            IconButton(
+                                onClick = viewModel::onMediaRemoved,
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(4.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    "移除",
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .then(Modifier.size(28.dp))
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 工具按钮行
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // 语音按钮
+                FilledTonalButton(
+                    onClick = {
+                        val helper = VoiceRecognitionHelper(context as android.app.Activity)
+                        scope.launch {
+                            val result = helper.recognize()
+                            if (result != null) {
+                                val current = viewModel.uiState.value.textInput
+                                viewModel.onTextChanged(
+                                    if (current.isBlank()) result else "$current\n$result"
+                                )
+                            }
+                        }
+                    },
+                    enabled = !uiState.isSaving,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Mic, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("语音", style = MaterialTheme.typography.labelLarge)
+                }
+
+                // 拍照按钮
+                FilledTonalButton(
+                    onClick = { cameraLauncher.launch(null) },
+                    enabled = !uiState.isSaving,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("拍照", style = MaterialTheme.typography.labelLarge)
+                }
+
+                // 相册按钮
+                FilledTonalButton(
+                    onClick = { galleryLauncher.launch("image/*") },
+                    enabled = !uiState.isSaving,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("图片", style = MaterialTheme.typography.labelLarge)
+                }
+            }
+
+            // 错误提示
+            AnimatedVisibility(visible = uiState.errorMessage != null) {
+                uiState.errorMessage?.let { error ->
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = error,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(12.dp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
         }
 
-        uiState.errorMessage?.let { error ->
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(text = error, color = MaterialTheme.colorScheme.error)
+        // 底部悬浮保存按钮
+        Surface(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth(),
+            shadowElevation = 8.dp,
+            color = MaterialTheme.colorScheme.background.copy(alpha = 0.95f)
+        ) {
+            Button(
+                onClick = { viewModel.onSave("app") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                enabled = !uiState.isSaving && (uiState.textInput.isNotBlank() || uiState.mediaUri != null),
+                shape = RoundedCornerShape(14.dp),
+                contentPadding = PaddingValues(vertical = 16.dp)
+            ) {
+                AnimatedContent(targetState = uiState.isSaving, label = "save") { saving ->
+                    if (saving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("保存中…", style = MaterialTheme.typography.titleMedium)
+                    } else {
+                        Icon(Icons.Default.Check, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("保存想法", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
         }
     }
 }

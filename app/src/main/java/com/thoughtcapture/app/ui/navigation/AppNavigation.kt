@@ -1,5 +1,6 @@
 package com.thoughtcapture.app.ui.navigation
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
@@ -37,12 +38,31 @@ fun AppNavigation(startTab: String? = null) {
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 0.dp
+            ) {
                 bottomNavItems.forEach { screen ->
+                    val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
                     NavigationBarItem(
-                        icon = { Icon(screen.icon, contentDescription = screen.label) },
-                        label = { Text(screen.label) },
-                        selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                        icon = {
+                            if (selected) {
+                                Icon(screen.icon, contentDescription = screen.label)
+                            } else {
+                                Icon(
+                                    screen.icon,
+                                    contentDescription = screen.label,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        },
+                        label = {
+                            Text(
+                                screen.label,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        },
+                        selected = selected,
                         onClick = {
                             navController.navigate(screen.route) {
                                 popUpTo(navController.graph.findStartDestination().id) {
@@ -51,7 +71,10 @@ fun AppNavigation(startTab: String? = null) {
                                 launchSingleTop = true
                                 restoreState = true
                             }
-                        }
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                        )
                     )
                 }
             }
@@ -60,7 +83,9 @@ fun AppNavigation(startTab: String? = null) {
         NavHost(
             navController = navController,
             startDestination = startTab ?: Screen.Capture.route,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(innerPadding),
+            enterTransition = { fadeIn(animationSpec = androidx.compose.animation.core.tween(200)) },
+            exitTransition = { fadeOut(animationSpec = androidx.compose.animation.core.tween(200)) }
         ) {
             composable(Screen.Capture.route) { CaptureScreen() }
             composable(Screen.Inbox.route) { InboxScreen() }
