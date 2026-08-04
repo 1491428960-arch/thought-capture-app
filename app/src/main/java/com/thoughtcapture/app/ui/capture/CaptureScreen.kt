@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -165,7 +166,7 @@ fun CaptureScreen(
                 // 语音按钮
                 FilledTonalButton(
                     onClick = {
-                        val helper = VoiceRecognitionHelper(context as android.app.Activity)
+                        val helper = VoiceRecognitionHelper(context as androidx.activity.ComponentActivity)
                         scope.launch {
                             val result = helper.recognize()
                             if (result != null) {
@@ -248,19 +249,25 @@ fun CaptureScreen(
                 shape = RoundedCornerShape(14.dp),
                 contentPadding = PaddingValues(vertical = 16.dp)
             ) {
-                AnimatedContent(targetState = uiState.isSaving, label = "save") { saving ->
-                    if (saving) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("保存中…", style = MaterialTheme.typography.titleMedium)
-                    } else {
-                        Icon(Icons.Default.Check, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("保存想法", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    AnimatedContent(targetState = uiState.isSaving, label = "save") { saving ->
+                        if (saving) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("保存中…", style = MaterialTheme.typography.titleMedium)
+                            }
+                        } else {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Check, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("保存想法", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
                     }
                 }
             }

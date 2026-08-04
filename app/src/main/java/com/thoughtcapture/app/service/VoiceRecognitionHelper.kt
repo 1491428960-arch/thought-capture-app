@@ -1,13 +1,15 @@
 package com.thoughtcapture.app.service
 
-import android.app.Activity
 import android.content.Intent
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import androidx.activity.ComponentActivity
+import androidx.activity.result.ActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
-class VoiceRecognitionHelper(private val activity: Activity) {
+class VoiceRecognitionHelper(private val activity: ComponentActivity) {
 
     suspend fun recognize(): String? = suspendCancellableCoroutine { cont ->
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
@@ -18,9 +20,9 @@ class VoiceRecognitionHelper(private val activity: Activity) {
 
         val launcher = activity.activityResultRegistry.register(
             "voice_recognition",
-            androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
-        ) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
+            ActivityResultContracts.StartActivityForResult()
+        ) { result: ActivityResult ->
+            if (result.resultCode == android.app.Activity.RESULT_OK) {
                 val matches = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
                 val text = matches?.firstOrNull()
                 cont.resume(text)

@@ -17,9 +17,19 @@ android {
         versionName = "1.0.0"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("../thought-capture.keystore")
+            storePassword = "android2026"
+            keyAlias = "thoughtcapture"
+            keyPassword = "android2026"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -71,6 +81,4 @@ dependencies {
     implementation(libs.navigation.compose)
 
     implementation(libs.security.crypto)
-
-    implementation(libs.compose.markdown)
 }

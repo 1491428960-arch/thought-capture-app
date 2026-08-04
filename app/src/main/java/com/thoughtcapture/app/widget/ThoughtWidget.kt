@@ -1,7 +1,7 @@
 package com.thoughtcapture.app.widget
 
+import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -23,11 +23,9 @@ class ThoughtWidget : GlanceAppWidget() {
                     modifier = GlanceModifier
                         .fillMaxWidth()
                         .clickable(androidx.glance.action.actionStartActivity(
-                            Intent(context, MainActivity::class.java).apply {
-                                putExtra("open_capture", true)
-                            }
+                            ComponentName(context, MainActivity::class.java)
                         ))
-                        .padding(12.dp)
+                        .padding(12)
                 ) {
                     Row(
                         verticalAlignment = Alignment.Vertical.CenterVertically
@@ -36,7 +34,7 @@ class ThoughtWidget : GlanceAppWidget() {
                             text = "✏️",
                             style = TextStyle(color = ColorProvider(android.graphics.Color.WHITE))
                         )
-                        androidx.glance.layout.Spacer(modifier = GlanceModifier.width(6.dp))
+                        Spacer(modifier = GlanceModifier.width(6))
                         Text(
                             text = "快速记录",
                             style = TextStyle(color = ColorProvider(android.graphics.Color.WHITE))

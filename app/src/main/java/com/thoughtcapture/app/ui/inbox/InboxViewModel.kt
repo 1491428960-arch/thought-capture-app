@@ -21,7 +21,14 @@ class InboxViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             if (app.gitSync.canSync()) {
                 app.gitSync.pull()
+                app.repository.syncProcessedStatus(app.gitSync.getRepoDir())
             }
+        }
+    }
+
+    fun deleteEntry(entry: ThoughtEntry) {
+        viewModelScope.launch {
+            app.repository.deleteEntry(entry)
         }
     }
 }

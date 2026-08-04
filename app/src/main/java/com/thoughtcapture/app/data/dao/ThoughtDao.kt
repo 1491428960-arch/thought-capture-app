@@ -24,4 +24,10 @@ interface ThoughtDao {
 
     @Query("SELECT COUNT(*) FROM thought_entries WHERE status = 'inbox'")
     suspend fun getUnprocessedCount(): Int
+
+    @Delete
+    suspend fun delete(entry: ThoughtEntry)
+
+    @Query("DELETE FROM thought_entries WHERE id = :id")
+    suspend fun deleteById(id: String)
 }

@@ -1,6 +1,8 @@
 package com.thoughtcapture.app.ui.setup
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,13 +24,20 @@ fun SetupScreen(
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
-    if (app.prefs.isConfigured) {
-        LaunchedEffect(Unit) { onComplete() }
-        return
+    // 如果已配置，预填现有值
+    LaunchedEffect(Unit) {
+        if (app.prefs.isConfigured) {
+            repoUrl = app.prefs.repoUrl ?: ""
+            pat = app.prefs.githubPat ?: ""
+            branch = app.prefs.repoBranch
+        }
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp)
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -72,6 +81,24 @@ fun SetupScreen(
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        var syncOnMobileData by remember { mutableStateOf(app.prefs.syncOnMobileData) }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("使用流量同步", style = MaterialTheme.typography.bodyMedium)
+            Switch(
+                checked = syncOnMobileData,
+                onCheckedChange = {
+                    syncOnMobileData = it
+                    app.prefs.syncOnMobileData = it
+                }
+            )
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 

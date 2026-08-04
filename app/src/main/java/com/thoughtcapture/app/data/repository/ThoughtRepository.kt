@@ -50,4 +50,46 @@ class ThoughtRepository(private val dao: ThoughtDao) {
     suspend fun updateStatusAndTags(id: String, status: String, tags: String) {
         dao.updateStatusAndTags(id, status, tags)
     }
+
+    /**
+     * 从 Git 仓库的 processed/ 目录同步处理状态回本地数据库。
+     * Agent 在 PC 端处理后会移动文件到 processed/<分类>/并更新 frontmatter。
+     */
+    suspend fun syncProcessedStatus(repoDir: File) {
+        val processedDir = File(repoDir, "processed")
+        if (!processedDir.exists()) return
+
+        processedDir.walkTopDown().filter { it.isFile && it.extension == "md" }.forEach { file ->
+            val id = file.nameWithoutExtension
+            val entry = dao.getById(id)
+            if (entry != null && entry.status == "inbox") {
+                // 从 frontmatter 中提取 tags
+                val content = file.readText()
+                val tags = extractTagsFromFrontmatter(content)
+                dao.updateStatusAndTags(id, "processed", tags)
+            }
+        }
+    }
+
+    private fun extractTagsFromFrontmatter(text: String): String {
+        if (!text.startsWith("---")) return "[]"
+        val end = text.indexOf("---", 3)
+        if (end == -1) return "[]"
+        val fm = text.substring(3, end)
+        for (line in fm.split("\n")) {
+            val trimmed = line.trim()
+            if (trimmed.startsWith("tags:")) {
+                return trimmed.removePrefix("tags:").trim()
+            }
+        }
+        return "[]"
+    }
+
+    suspend fun deleteEntry(entry: ThoughtEntry) {
+        dao.delete(entry)
+    }
+
+    suspend fun deleteById(id: String) {
+        dao.deleteById(id)
+    }
 }

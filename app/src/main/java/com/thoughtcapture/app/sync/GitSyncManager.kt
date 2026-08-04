@@ -16,7 +16,7 @@ class GitSyncManager(
     private val context: Context,
     private val prefs: PreferencesManager
 ) {
-    private val repoDir: File
+    private val repoDirInternal: File
         get() = File(context.filesDir, "thought_repo")
 
     suspend fun cloneIfNeeded(): Result<Unit> = withContext(Dispatchers.IO) {
@@ -24,12 +24,12 @@ class GitSyncManager(
             if (!prefs.isConfigured) {
                 return@withContext Result.failure(IllegalStateException("未配置仓库信息"))
             }
-            if (File(repoDir, ".git").exists()) {
+            if (File(repoDirInternal, ".git").exists()) {
                 return@withContext Result.success(Unit)
             }
             Git.cloneRepository()
                 .setURI(prefs.repoUrl)
-                .setDirectory(repoDir)
+                .setDirectory(repoDirInternal)
                 .setCredentialsProvider(createCredential())
                 .setBranch(prefs.repoBranch)
                 .call()
@@ -42,7 +42,7 @@ class GitSyncManager(
 
     suspend fun pull(): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val git = Git.open(repoDir)
+            val git = Git.open(repoDirInternal)
             git.pull()
                 .setCredentialsProvider(createCredential())
                 .setRebase(true)
@@ -56,7 +56,7 @@ class GitSyncManager(
 
     suspend fun push(commitMessage: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val git = Git.open(repoDir)
+            val git = Git.open(repoDirInternal)
             git.add().addFilepattern(".").call()
             git.commit()
                 .setMessage(commitMessage)
@@ -89,8 +89,8 @@ class GitSyncManager(
         return Result.failure(lastError ?: Exception("未知错误"))
     }
 
-    fun getRepoDir(): File = repoDir
-    fun getMediaDir(): File = File(repoDir, "media").also { if (!it.exists()) it.mkdirs() }
+    fun getRepoDir(): File = repoDirInternal
+    fun getMediaDir(): File = File(repoDirInternal, "media").also { if (!it.exists()) it.mkdirs() }
 
     private fun createCredential(): UsernamePasswordCredentialsProvider {
         return UsernamePasswordCredentialsProvider(prefs.githubPat ?: "", "")

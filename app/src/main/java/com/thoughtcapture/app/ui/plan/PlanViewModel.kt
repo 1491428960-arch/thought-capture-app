@@ -25,6 +25,7 @@ class PlanViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             if (app.gitSync.canSync()) {
                 app.gitSync.pull()
+                app.repository.syncProcessedStatus(app.gitSync.getRepoDir())
             }
 
             val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
