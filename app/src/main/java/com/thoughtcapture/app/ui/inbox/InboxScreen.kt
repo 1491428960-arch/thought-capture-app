@@ -27,7 +27,8 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InboxScreen(
-    viewModel: InboxViewModel = viewModel()
+    viewModel: InboxViewModel = viewModel(),
+    onNavigateToCapture: () -> Unit = {}
 ) {
     val entries by viewModel.entries.collectAsState()
     var isRefreshing by remember { mutableStateOf(false) }
@@ -102,11 +103,9 @@ fun InboxScreen(
             }
         }
 
-        // FAB
+        // FAB — 跳转到捕捉页
         FloatingActionButton(
-            onClick = {
-                // 切换到捕捉 Tab — 通过回调或直接启动
-            },
+            onClick = onNavigateToCapture,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(20.dp),

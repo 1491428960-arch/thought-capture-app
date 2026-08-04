@@ -88,7 +88,17 @@ fun AppNavigation(startTab: String? = null) {
             exitTransition = { fadeOut(animationSpec = androidx.compose.animation.core.tween(200)) }
         ) {
             composable(Screen.Capture.route) { CaptureScreen() }
-            composable(Screen.Inbox.route) { InboxScreen() }
+            composable(Screen.Inbox.route) {
+                InboxScreen(onNavigateToCapture = {
+                    navController.navigate(Screen.Capture.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                })
+            }
             composable(Screen.Plan.route) { PlanScreen() }
         }
     }
