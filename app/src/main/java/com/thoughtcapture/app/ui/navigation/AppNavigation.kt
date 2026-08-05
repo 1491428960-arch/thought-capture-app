@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.MenuBook
@@ -21,6 +22,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.thoughtcapture.app.ui.capture.CaptureScreen
 import com.thoughtcapture.app.ui.detail.DetailScreen
+import com.thoughtcapture.app.ui.fitness.FitnessScreen
 import com.thoughtcapture.app.ui.inbox.InboxScreen
 import com.thoughtcapture.app.ui.plan.PlanScreen
 import com.thoughtcapture.app.ui.review.ReviewScreen
@@ -31,9 +33,10 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     data object Inbox : Screen("inbox", "收件箱", Icons.Default.Inbox)
     data object Review : Screen("review", "复习", Icons.Default.MenuBook)
     data object Plan : Screen("plan", "计划", Icons.Default.CalendarToday)
+    data object Fitness : Screen("fitness", "运动", Icons.Default.FitnessCenter)
 }
 
-val bottomNavItems = listOf(Screen.Capture, Screen.Inbox, Screen.Review, Screen.Plan)
+val bottomNavItems = listOf(Screen.Capture, Screen.Inbox, Screen.Review, Screen.Plan, Screen.Fitness)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -115,6 +118,7 @@ fun AppNavigation(startTab: String? = null) {
             }
             composable(Screen.Review.route) { ReviewScreen() }
             composable(Screen.Plan.route) { PlanScreen() }
+            composable(Screen.Fitness.route) { FitnessScreen() }
             composable("settings") {
                 SetupScreen(onComplete = { navController.popBackStack() })
             }

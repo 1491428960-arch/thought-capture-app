@@ -9,7 +9,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
@@ -35,14 +34,7 @@ fun ReviewScreen(viewModel: ReviewViewModel = viewModel()) {
         label = "reviewRefresh"
     )
 
-    PullToRefreshBox(
-        isRefreshing = isRefreshing,
-        onRefresh = {
-            scope.launch { isRefreshing = true; viewModel.refresh(); kotlinx.coroutines.delay(600); isRefreshing = false }
-        },
-        modifier = Modifier.fillMaxSize()
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize()) {
             Surface(color = MaterialTheme.colorScheme.background, shadowElevation = 1.dp) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
@@ -53,8 +45,30 @@ fun ReviewScreen(viewModel: ReviewViewModel = viewModel()) {
                         Text("📖", style = MaterialTheme.typography.headlineSmall)
                         Spacer(Modifier.width(8.dp))
                         Column {
-                            Text("今日复习", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.headlineSmall)
-                            Text(uiState.date, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("复习", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.headlineSmall)
+                                if (uiState.availableReviews.size > 1) {
+                                    Spacer(Modifier.width(4.dp))
+                                    var showPicker by remember { mutableStateOf(false) }
+                                    Box {
+                                        TextButton(onClick = { showPicker = true }) {
+                                            Text(uiState.date, style = MaterialTheme.typography.labelSmall)
+                                            Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp))
+                                        }
+                                        DropdownMenu(expanded = showPicker, onDismissRequest = { showPicker = false }) {
+                                            uiState.availableReviews.forEach { date ->
+                                                DropdownMenuItem(
+                                                    text = { Text(date) },
+                                                    onClick = { showPicker = false; viewModel.selectDate(date) },
+                                                    leadingIcon = if (date == uiState.date) {
+                                                        @Composable { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
+                                                    } else null
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                     IconButton(onClick = {
@@ -85,7 +99,8 @@ fun ReviewScreen(viewModel: ReviewViewModel = viewModel()) {
                     modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    uiState.content!!.lines().filter { it.isNotBlank() }.forEach { line ->
+                    uiState.content!!.lines().filter { it.isNotBlank() }.forEach { rawLine ->
+                        val line = rawLine.replace("**", "")
                         when {
                             line.startsWith("## ") -> {
                                 val section = line.removePrefix("## ").trim()
@@ -94,6 +109,7 @@ fun ReviewScreen(viewModel: ReviewViewModel = viewModel()) {
                                     section.contains("范文") -> "📄" to Color(0xFF8B5CF6)
                                     section.contains("常识") -> "⚡" to Color(0xFFF59E0B)
                                     section.contains("笔记") -> "📓" to Color(0xFF10B981)
+                                    section.contains("健身") -> "💪" to Color(0xFFEC4899)
                                     else -> "📌" to Color(0xFF2563EB)
                                 }
                                 Spacer(Modifier.height(12.dp))
@@ -122,5 +138,4 @@ fun ReviewScreen(viewModel: ReviewViewModel = viewModel()) {
                 }
             }
         }
-    }
 }

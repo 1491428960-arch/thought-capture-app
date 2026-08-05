@@ -19,7 +19,7 @@ data class CaptureUiState(
     val saveSuccess: Boolean = false,
     val errorMessage: String? = null,
     val isConfigured: Boolean = false,
-    val isPlanMode: Boolean = false
+    val captureMode: String = "thought"  // "thought" | "brief" | "practice"
 )
 
 class CaptureViewModel(application: Application) : AndroidViewModel(application) {
@@ -66,11 +66,14 @@ class CaptureViewModel(application: Application) : AndroidViewModel(application)
                     mediaPath = "media/${destFile.name}"
                 }
 
-                val type = when {
-                    state.isPlanMode -> "brief"
-                    state.mediaUri != null && state.mediaType == "photo" -> "photo"
-                    state.textInput.isNotBlank() -> "text"
-                    else -> "text"
+                val type = when (state.captureMode) {
+                    "brief" -> "brief"
+                    "practice" -> "practice"
+                    else -> when {
+                        state.mediaUri != null && state.mediaType == "photo" -> "photo"
+                        state.textInput.isNotBlank() -> "text"
+                        else -> "text"
+                    }
                 }
 
                 val repoDir = app.gitSync.getRepoDir()
@@ -106,8 +109,13 @@ class CaptureViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun togglePlanMode() {
-        _uiState.value = _uiState.value.copy(isPlanMode = !_uiState.value.isPlanMode)
+    fun cycleMode() {
+        val next = when (_uiState.value.captureMode) {
+            "thought" -> "brief"
+            "brief" -> "practice"
+            else -> "thought"
+        }
+        _uiState.value = _uiState.value.copy(captureMode = next)
     }
 
     fun clearSuccess() {

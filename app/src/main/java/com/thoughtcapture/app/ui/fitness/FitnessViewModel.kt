@@ -1,4 +1,4 @@
-package com.thoughtcapture.app.ui.plan
+package com.thoughtcapture.app.ui.fitness
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -11,36 +11,31 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
-class PlanViewModel(application: Application) : AndroidViewModel(application) {
+class FitnessViewModel(application: Application) : AndroidViewModel(application) {
 
     private val app = application as ThoughtCaptureApp
-    private val _uiState = MutableStateFlow(PlanUiState())
-    val uiState: StateFlow<PlanUiState> = _uiState
+    private val _uiState = MutableStateFlow(FitnessUiState())
+    val uiState: StateFlow<FitnessUiState> = _uiState
 
-    init {
-        loadTodayPlan()
-    }
+    init { loadToday() }
 
     fun refresh() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             if (app.gitSync.canSync()) {
                 app.gitSync.pull()
-                app.repository.syncProcessedStatus(app.gitSync.getRepoDir())
             }
-            loadAvailablePlans()
-            val date = _uiState.value.selectedDate
-            loadPlan(date)
+            loadAvailableDates()
+            loadPlan(_uiState.value.selectedDate.ifEmpty {
+                SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            })
         }
     }
 
-    fun loadTodayPlan() {
+    private fun loadToday() {
         viewModelScope.launch {
-            if (app.gitSync.canSync()) {
-                app.gitSync.pull()
-                app.repository.syncProcessedStatus(app.gitSync.getRepoDir())
-            }
-            loadAvailablePlans()
+            if (app.gitSync.canSync()) app.gitSync.pull()
+            loadAvailableDates()
             val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
             _uiState.value = _uiState.value.copy(selectedDate = today)
             loadPlan(today)
@@ -54,7 +49,7 @@ class PlanViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun loadPlan(date: String) {
         viewModelScope.launch {
-            val planFile = File(app.gitSync.getRepoDir(), "plans/$date-plan.md")
+            val planFile = File(app.gitSync.getRepoDir(), "fitness/plans/$date-plan.md")
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
                 content = if (planFile.exists()) planFile.readText() else null,
@@ -63,61 +58,45 @@ class PlanViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun loadAvailablePlans() {
-        val plansDir = File(app.gitSync.getRepoDir(), "plans")
+    private fun loadAvailableDates() {
+        val plansDir = File(app.gitSync.getRepoDir(), "fitness/plans")
         if (!plansDir.exists()) {
-            _uiState.value = _uiState.value.copy(availablePlans = emptyList())
+            _uiState.value = _uiState.value.copy(availableDates = emptyList())
             return
         }
         val files = plansDir.listFiles { f -> f.name.endsWith("-plan.md") } ?: emptyArray()
         val dates = files.map { it.name.removeSuffix("-plan.md") }
             .filter { it.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) }
             .sortedDescending()
-        _uiState.value = _uiState.value.copy(availablePlans = dates)
-    }
-
-    fun deletePlan(date: String) {
-        val planFile = File(app.gitSync.getRepoDir(), "plans/$date-plan.md")
-        if (planFile.exists()) planFile.delete()
-        loadAvailablePlans()
-        if (date == _uiState.value.selectedDate) {
-            loadPlan(date)
-        }
+        _uiState.value = _uiState.value.copy(availableDates = dates)
     }
 
     fun toggleCheckbox(lineIndex: Int) {
         viewModelScope.launch {
             val date = _uiState.value.date
-            val planFile = File(app.gitSync.getRepoDir(), "plans/$date-plan.md")
+            val planFile = File(app.gitSync.getRepoDir(), "fitness/plans/$date-plan.md")
             if (!planFile.exists()) return@launch
-
             val lines = planFile.readText().lines().toMutableList()
             if (lineIndex >= lines.size) return@launch
-
             val line = lines[lineIndex]
             lines[lineIndex] = when {
                 line.trimStart().startsWith("- [ ] ") -> line.replace("- [ ] ", "- [x] ")
                 line.trimStart().startsWith("- [x] ") -> line.replace("- [x] ", "- [ ] ")
                 else -> return@launch
             }
-
             planFile.writeText(lines.joinToString("\n"))
             _uiState.value = _uiState.value.copy(content = planFile.readText())
-
-            // 异步推送到 GitHub
             launch {
-                if (app.gitSync.canSync()) {
-                    app.gitSync.pushWithRetry("update: 计划 $date 勾选更新")
-                }
+                if (app.gitSync.canSync()) app.gitSync.pushWithRetry("fitness: $date 训练打卡")
             }
         }
     }
 }
 
-data class PlanUiState(
+data class FitnessUiState(
     val isLoading: Boolean = true,
     val content: String? = null,
     val date: String = "",
     val selectedDate: String = "",
-    val availablePlans: List<String> = emptyList()
+    val availableDates: List<String> = emptyList()
 )

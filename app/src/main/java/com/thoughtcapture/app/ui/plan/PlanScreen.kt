@@ -10,7 +10,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -42,19 +41,7 @@ fun PlanScreen(
         label = "refreshRotation"
     )
 
-    PullToRefreshBox(
-        isRefreshing = isRefreshing,
-        onRefresh = {
-            scope.launch {
-                isRefreshing = true
-                viewModel.refresh()
-                delay(600)
-                isRefreshing = false
-            }
-        },
-        modifier = Modifier.fillMaxSize()
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize()) {
             // 顶栏
             Surface(color = MaterialTheme.colorScheme.background, shadowElevation = 1.dp) {
                 Row(
@@ -151,17 +138,22 @@ fun PlanScreen(
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(top = 8.dp, bottom = 12.dp)
                             )
-                            line.startsWith("## ") -> Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                            ) {
+                            line.startsWith("## ") -> {
+                                val sectionTitle = line.removePrefix("## ").trim()
+                                val isLifeSection = sectionTitle.contains("生活") || sectionTitle.contains("健身") || sectionTitle.contains("饮食")
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isLifeSection) Color(0xFF10B981).copy(alpha = 0.1f)
+                                            else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                ) {
                                 Text(
-                                    line.removePrefix("## "),
+                                    sectionTitle,
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                                 )
+                                }
                             }
                             line.startsWith("- [ ] ") -> Card(
                                 shape = RoundedCornerShape(10.dp),
@@ -195,6 +187,18 @@ fun PlanScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
+                            line.trim() == "---" -> Spacer(Modifier.height(8.dp))
+                            line.startsWith("### ") -> {
+                                val subTitle = line.removePrefix("### ").trim()
+                                val isLifeSub = subTitle.contains("健身") || subTitle.contains("饮食")
+                                Text(
+                                    subTitle,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (isLifeSub) Color(0xFF10B981) else MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                                )
+                            }
                             line.startsWith("**") && line.endsWith("**") -> Text(
                                 line.removeSurrounding("**"),
                                 style = MaterialTheme.typography.titleSmall,
@@ -206,60 +210,9 @@ fun PlanScreen(
                                 color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
-
-                    // 今日复习区
-                    if (!uiState.reviewContent.isNullOrBlank()) {
-                        Spacer(Modifier.height(24.dp))
-                        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)))
-                        Spacer(Modifier.height(16.dp))
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("📖", style = MaterialTheme.typography.titleMedium)
-                            Spacer(Modifier.width(6.dp))
-                            Text("今日复习", fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = Color(0xFF8B5CF6))
-                        }
-                        Spacer(Modifier.height(8.dp))
-
-                        uiState.reviewContent!!.lines().filter { it.isNotBlank() }.forEach { line ->
-                            when {
-                                line.startsWith("## ") -> Text(
-                                    line.removePrefix("## "),
-                                    fontWeight = FontWeight.SemiBold,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
-                                    color = Color(0xFF8B5CF6)
-                                )
-                                line.startsWith("- [ ] ") -> Card(
-                                    shape = RoundedCornerShape(10.dp),
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Checkbox(checked = false, onCheckedChange = {},
-                                            colors = CheckboxDefaults.colors(checkedColor = Color(0xFF8B5CF6)))
-                                        Spacer(Modifier.width(4.dp))
-                                        Text(line.removePrefix("- [ ] ").trim(),
-                                            style = MaterialTheme.typography.bodySmall)
-                                    }
-                                }
-                                line.startsWith("- ") -> Text(line.removePrefix("- "),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.padding(start = 8.dp),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                else -> Text(line, style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                    }
                 }
             }
         }
-    }
 
     // 删除确认
     if (showDeleteConfirm) {

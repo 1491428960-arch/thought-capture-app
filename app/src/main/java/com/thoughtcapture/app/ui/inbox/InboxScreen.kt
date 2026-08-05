@@ -8,7 +8,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,13 +36,22 @@ fun InboxScreen(
     var isRefreshing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    // 刷新时连续旋转
-    val infiniteTransition = rememberInfiniteTransition(label = "sync")
-    val rotationAngle by infiniteTransition.animateFloat(
-        initialValue = 0f, targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(1000, easing = LinearEasing)),
+    // 刷新旋转动画
+    val rotationAngle by animateFloatAsState(
+        targetValue = if (isRefreshing) 360f else 0f,
+        animationSpec = if (isRefreshing)
+            infiniteRepeatable(tween(800, easing = LinearEasing), RepeatMode.Restart)
+        else tween(300),
         label = "syncRotation"
     )
+
+    // 首次打开自动刷新
+    LaunchedEffect(Unit) {
+        delay(1500)
+        isRefreshing = true
+        viewModel.refreshFromRemote()
+        isRefreshing = false
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -64,6 +72,7 @@ fun InboxScreen(
                             scope.launch {
                                 isRefreshing = true
                                 viewModel.refreshFromRemote()
+                                delay(800) // 最小展示时间让动画可见
                                 isRefreshing = false
                             }
                         }) {
@@ -82,39 +91,25 @@ fun InboxScreen(
             }
 
             // 内容
-            PullToRefreshBox(
-                isRefreshing = isRefreshing,
-                onRefresh = {
-                    scope.launch {
-                        isRefreshing = true
-                        viewModel.refreshFromRemote()
-                        delay(800)
-                        isRefreshing = false
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            ) {
-                    if (entries.isEmpty()) {
-                        EmptyInbox()
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        items(entries, key = { it.id }) { entry ->
-                            ThoughtEntryCard(
-                                entry = entry,
-                                onClick = { onNavigateToDetail(entry.id) },
-                                onDelete = { viewModel.deleteEntry(entry) },
-                                modifier = Modifier.animateItem()
-                            )
-                        }
+            if (entries.isEmpty()) {
+                EmptyInbox()
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(entries, key = { it.id }) { entry ->
+                        ThoughtEntryCard(
+                            entry = entry,
+                            onClick = { onNavigateToDetail(entry.id) },
+                            onDelete = { viewModel.deleteEntry(entry) },
+                            modifier = Modifier.animateItem()
+                        )
                     }
                 }
             }
-
-            }
+        }
 
         // FAB
         FloatingActionButton(

@@ -84,36 +84,34 @@ fun CaptureScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                val (emoji, title, modeColor) = when (uiState.captureMode) {
+                    "brief" -> Triple("📋", "今日规划", Color(0xFF10B981))
+                    "practice" -> Triple("✍️", "写作练习", Color(0xFFF59E0B))
+                    else -> Triple("💡", "新想法", MaterialTheme.colorScheme.primary)
+                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        if (uiState.isPlanMode) "📋" else "💡",
-                        style = MaterialTheme.typography.headlineSmall
-                    )
+                    Text(emoji, style = MaterialTheme.typography.headlineSmall)
                     Spacer(Modifier.width(8.dp))
-                    Text(
-                        if (uiState.isPlanMode) "今日规划" else "新想法",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 }
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = if (uiState.isPlanMode)
-                        Color(0xFF10B981).copy(alpha = 0.12f)
-                    else
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                    onClick = { viewModel.togglePlanMode() }
+                    color = modeColor.copy(alpha = 0.12f),
+                    onClick = { viewModel.cycleMode() }
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            if (uiState.isPlanMode) "做计划" else "记想法",
+                            when (uiState.captureMode) {
+                                "brief" -> "做计划"
+                                "practice" -> "交练习"
+                                else -> "记想法"
+                            },
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Medium,
-                            color = if (uiState.isPlanMode) Color(0xFF10B981)
-                                    else MaterialTheme.colorScheme.primary
+                            color = modeColor
                         )
                     }
                 }

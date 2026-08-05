@@ -43,10 +43,14 @@ class GitSyncManager(
     suspend fun pull(): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val git = Git.open(repoDirInternal)
+            val stashRef = git.stashCreate().call()
             git.pull()
                 .setCredentialsProvider(createCredential())
                 .setRebase(true)
                 .call()
+            if (stashRef != null) {
+                git.stashDrop().setStashRef(0).call()
+            }
             git.close()
             Result.success(Unit)
         } catch (e: Exception) {

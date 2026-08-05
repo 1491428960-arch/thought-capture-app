@@ -28,7 +28,7 @@ class PreferencesManager(context: Context) {
         set(value) = prefs.edit().putString(KEY_REPO_URL, value).apply()
 
     var repoBranch: String
-        get() = prefs.getString(KEY_BRANCH, "main") ?: "main"
+        get() = prefs.getString(KEY_BRANCH, "master") ?: "master"
         set(value) = prefs.edit().putString(KEY_BRANCH, value).apply()
 
     var syncOnMobileData: Boolean

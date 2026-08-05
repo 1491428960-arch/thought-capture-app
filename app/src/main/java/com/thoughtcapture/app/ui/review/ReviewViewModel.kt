@@ -25,25 +25,59 @@ class ReviewViewModel(application: Application) : AndroidViewModel(application) 
             if (app.gitSync.canSync()) {
                 app.gitSync.pull()
             }
-            loadTodayReview()
+            loadAvailableReviews()
+            loadReview(_uiState.value.selectedDate.ifEmpty {
+                SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            })
         }
     }
 
     private fun loadTodayReview() {
         viewModelScope.launch {
+            if (app.gitSync.canSync()) {
+                app.gitSync.pull()
+            }
+            loadAvailableReviews()
             val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-            val reviewFile = File(app.gitSync.getRepoDir(), "review/$today-review.md")
+            _uiState.value = _uiState.value.copy(selectedDate = today)
+            loadReview(today)
+        }
+    }
+
+    fun selectDate(date: String) {
+        _uiState.value = _uiState.value.copy(selectedDate = date)
+        loadReview(date)
+    }
+
+    private fun loadReview(date: String) {
+        viewModelScope.launch {
+            val reviewFile = File(app.gitSync.getRepoDir(), "review/$date-review.md")
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
                 content = if (reviewFile.exists()) reviewFile.readText() else null,
-                date = today
+                date = date
             )
         }
+    }
+
+    private fun loadAvailableReviews() {
+        val reviewDir = File(app.gitSync.getRepoDir(), "review")
+        if (!reviewDir.exists()) {
+            _uiState.value = _uiState.value.copy(availableReviews = emptyList())
+            return
+        }
+        val files = reviewDir.listFiles { f -> f.name.endsWith("-review.md") } ?: emptyArray()
+        val dates = files.map { it.name.removeSuffix("-review.md") }
+            .filter { it.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) }
+            .sortedDescending()
+        _uiState.value = _uiState.value.copy(availableReviews = dates)
     }
 }
 
 data class ReviewUiState(
     val isLoading: Boolean = true,
     val content: String? = null,
-    val date: String = ""
+    val date: String = "",
+    val selectedDate: String = "",
+    val availableReviews: List<String> = emptyList()
 )

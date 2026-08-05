@@ -62,12 +62,51 @@ class ThoughtRepository(private val dao: ThoughtDao) {
         processedDir.walkTopDown().filter { it.isFile && it.extension == "md" }.forEach { file ->
             val id = file.nameWithoutExtension
             val entry = dao.getById(id)
-            if (entry != null && entry.status == "inbox") {
-                // 从 frontmatter 中提取 tags
+            if (entry != null) {
+                if (entry.status == "inbox") {
+                    val content = file.readText()
+                    val tags = extractTagsFromFrontmatter(content)
+                    dao.updateStatusAndTags(id, "processed", tags)
+                }
+            } else {
+                // 新安装/清数据后，从processed重建条目
                 val content = file.readText()
-                val tags = extractTagsFromFrontmatter(content)
-                dao.updateStatusAndTags(id, "processed", tags)
+                val fm = parseFrontmatter(content)
+                val newEntry = ThoughtEntry(
+                    id = id,
+                    type = fm.getOrDefault("type", "text"),
+                    status = "processed",
+                    source = fm.getOrDefault("source", "app"),
+                    content = content.split("---\n").lastOrNull()?.trim() ?: "",
+                    mediaPath = null,
+                    tags = extractTagsFromFrontmatter(content),
+                    createdAt = extractTimestamp(id)
+                )
+                dao.insert(newEntry)
             }
+        }
+    }
+
+    private fun parseFrontmatter(text: String): Map<String, String> {
+        if (!text.startsWith("---")) return emptyMap()
+        val end = text.indexOf("---", 3)
+        if (end == -1) return emptyMap()
+        return text.substring(3, end).split("\n")
+            .mapNotNull { line ->
+                val colonIdx = line.indexOf(":")
+                if (colonIdx > 0) {
+                    line.substring(0, colonIdx).trim() to line.substring(colonIdx + 1).trim()
+                } else null
+            }.toMap()
+    }
+
+    private fun extractTimestamp(id: String): Long {
+        // id 格式: 2026-08-05-123322-716
+        return try {
+            val sdf = SimpleDateFormat("yyyy-MM-dd-HHmmss-SSS", Locale.getDefault())
+            sdf.parse(id)?.time ?: System.currentTimeMillis()
+        } catch (_: Exception) {
+            System.currentTimeMillis()
         }
     }
 
@@ -91,5 +130,47 @@ class ThoughtRepository(private val dao: ThoughtDao) {
 
     suspend fun deleteById(id: String) {
         dao.deleteById(id)
+    }
+
+    /**
+     * 直接从文件系统加载所有条目（绕过数据库同步问题）。
+     * 扫描 inbox/ 和 processed/ 目录。
+     */
+    fun loadAllFromFiles(repoDir: File): List<ThoughtEntry> {
+        val entries = mutableListOf<ThoughtEntry>()
+
+        // 扫描 inbox/
+        val inboxDir = File(repoDir, "inbox")
+        if (inboxDir.exists()) {
+            inboxDir.listFiles { f -> f.extension == "md" }?.forEach { file ->
+                entries.add(parseEntryFromFile(file, "inbox"))
+            }
+        }
+
+        // 扫描 processed/
+        val processedDir = File(repoDir, "processed")
+        if (processedDir.exists()) {
+            processedDir.walkTopDown().filter { it.isFile && it.extension == "md" }.forEach { file ->
+                entries.add(parseEntryFromFile(file, "processed"))
+            }
+        }
+
+        return entries.distinctBy { it.id }.sortedByDescending { it.createdAt }
+    }
+
+    private fun parseEntryFromFile(file: File, defaultStatus: String): ThoughtEntry {
+        val id = file.nameWithoutExtension
+        val content = file.readText()
+        val fm = parseFrontmatter(content)
+        return ThoughtEntry(
+            id = id,
+            type = fm.getOrDefault("type", "text"),
+            status = fm.getOrDefault("status", defaultStatus),
+            source = fm.getOrDefault("source", "app"),
+            content = content.split("---\n").lastOrNull()?.trim() ?: "",
+            mediaPath = null,
+            tags = fm.getOrDefault("tags", "[]"),
+            createdAt = extractTimestamp(id)
+        )
     }
 }
