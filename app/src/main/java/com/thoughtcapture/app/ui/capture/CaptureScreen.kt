@@ -1,5 +1,6 @@
 package com.thoughtcapture.app.ui.capture
 
+import android.Manifest
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -18,6 +19,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -76,18 +78,45 @@ fun CaptureScreen(
                 .padding(horizontal = 20.dp)
                 .padding(top = 20.dp, bottom = 100.dp)
         ) {
-            // 标题区
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "💡",
-                    style = MaterialTheme.typography.headlineSmall
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "新想法",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
+            // 标题区 + 模式切换
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        if (uiState.isPlanMode) "📋" else "💡",
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        if (uiState.isPlanMode) "今日规划" else "新想法",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = if (uiState.isPlanMode)
+                        Color(0xFF10B981).copy(alpha = 0.12f)
+                    else
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                    onClick = { viewModel.togglePlanMode() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            if (uiState.isPlanMode) "做计划" else "记想法",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = if (uiState.isPlanMode) Color(0xFF10B981)
+                                    else MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -163,27 +192,53 @@ fun CaptureScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // 语音按钮
+                // 语音按钮 — 点击弹出系统语音对话框
+                val voiceHelper = remember { VoiceRecognitionHelper(context as androidx.activity.ComponentActivity) }
+                var isRecording by remember { mutableStateOf(false) }
+                var hasAudioPerm by remember {
+                    mutableStateOf(
+                        androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
+                        == android.content.pm.PackageManager.PERMISSION_GRANTED
+                    )
+                }
+                val audioPermLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.RequestPermission()
+                ) { granted -> hasAudioPerm = granted }
+
                 FilledTonalButton(
                     onClick = {
-                        val helper = VoiceRecognitionHelper(context as androidx.activity.ComponentActivity)
-                        scope.launch {
-                            val result = helper.recognize()
-                            if (result != null) {
-                                val current = viewModel.uiState.value.textInput
-                                viewModel.onTextChanged(
-                                    if (current.isBlank()) result else "$current\n$result"
-                                )
+                        if (!hasAudioPerm) {
+                            audioPermLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        } else {
+                            isRecording = true
+                            voiceHelper.startListening { result ->
+                                isRecording = false
+                                if (result != null) {
+                                    val current = viewModel.uiState.value.textInput
+                                    viewModel.onTextChanged(
+                                        if (current.isBlank()) result else "$current\n$result"
+                                    )
+                                }
                             }
                         }
                     },
                     enabled = !uiState.isSaving,
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    colors = if (isRecording)
+                        ButtonDefaults.filledTonalButtonColors(
+                            containerColor = Color(0xFFEF4444).copy(alpha = 0.15f),
+                            contentColor = Color(0xFFEF4444)
+                        )
+                    else ButtonDefaults.filledTonalButtonColors()
                 ) {
-                    Icon(Icons.Default.Mic, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("语音", style = MaterialTheme.typography.labelLarge)
+                    Icon(Icons.Default.Mic, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        if (!hasAudioPerm) "点我授权麦克风"
+                        else if (isRecording) "识别中…" else "语音",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
 
                 // 拍照按钮

@@ -18,7 +18,8 @@ data class CaptureUiState(
     val isSaving: Boolean = false,
     val saveSuccess: Boolean = false,
     val errorMessage: String? = null,
-    val isConfigured: Boolean = false
+    val isConfigured: Boolean = false,
+    val isPlanMode: Boolean = false
 )
 
 class CaptureViewModel(application: Application) : AndroidViewModel(application) {
@@ -66,6 +67,7 @@ class CaptureViewModel(application: Application) : AndroidViewModel(application)
                 }
 
                 val type = when {
+                    state.isPlanMode -> "brief"
                     state.mediaUri != null && state.mediaType == "photo" -> "photo"
                     state.textInput.isNotBlank() -> "text"
                     else -> "text"
@@ -102,6 +104,10 @@ class CaptureViewModel(application: Application) : AndroidViewModel(application)
                 )
             }
         }
+    }
+
+    fun togglePlanMode() {
+        _uiState.value = _uiState.value.copy(isPlanMode = !_uiState.value.isPlanMode)
     }
 
     fun clearSuccess() {
