@@ -40,40 +40,22 @@ class GitSyncManager(
         }
     }
 
+    /**
+     * 以远程为准强制同步——只做 fetch + hard reset，不 merge。
+     * 调用前确保已通过 pushWithRetry 推送本地改动。
+     */
     suspend fun pull(): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val git = Git.open(repoDirInternal)
-            // 先提交本地未推送的改动
-            val status = git.status().call()
-            if (!status.modified.isEmpty() || !status.added.isEmpty() || !status.removed.isEmpty()) {
-                git.add().addFilepattern(".").call()
-                git.commit()
-                    .setMessage("auto-save: 刷新前保存")
-                    .setAuthor("ThoughtCapture", "app@thoughtcapture.local")
-                    .call()
-            }
-            // fetch + merge（不丢弃本地，合并远程）
             git.fetch().setCredentialsProvider(createCredential()).call()
-            git.pull()
-                .setCredentialsProvider(createCredential())
-                .setRebase(false)
+            git.reset()
+                .setMode(org.eclipse.jgit.api.ResetCommand.ResetType.HARD)
+                .setRef("refs/remotes/origin/${prefs.repoBranch}")
                 .call()
             git.close()
             Result.success(Unit)
         } catch (e: Exception) {
-            // 合并失败时才强制以远程为准
-            try {
-                val git = Git.open(repoDirInternal)
-                git.fetch().setCredentialsProvider(createCredential()).call()
-                git.reset()
-                    .setMode(org.eclipse.jgit.api.ResetCommand.ResetType.HARD)
-                    .setRef("refs/remotes/origin/${prefs.repoBranch}")
-                    .call()
-                git.close()
-                Result.success(Unit)
-            } catch (e2: Exception) {
-                Result.failure(e2)
-            }
+            Result.failure(e)
         }
     }
 
