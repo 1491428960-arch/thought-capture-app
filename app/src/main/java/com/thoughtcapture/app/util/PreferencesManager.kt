@@ -35,6 +35,14 @@ class PreferencesManager(context: Context) {
         get() = prefs.getBoolean(KEY_MOBILE_DATA, false)
         set(value) = prefs.edit().putBoolean(KEY_MOBILE_DATA, value).apply()
 
+    var pcHost: String?
+        get() = prefs.getString(KEY_PC_HOST, null)
+        set(value) = prefs.edit().putString(KEY_PC_HOST, value).apply()
+
+    var remoteVersionCode: Int
+        get() = prefs.getInt(KEY_REMOTE_VERSION_CODE, 0)
+        set(value) = prefs.edit().putInt(KEY_REMOTE_VERSION_CODE, value).apply()
+
     val isConfigured: Boolean
         get() = !githubPat.isNullOrEmpty() && !repoUrl.isNullOrEmpty()
 
@@ -43,5 +51,7 @@ class PreferencesManager(context: Context) {
         private const val KEY_REPO_URL = "github_repo_url"
         private const val KEY_BRANCH = "github_branch"
         private const val KEY_MOBILE_DATA = "sync_mobile_data"
+        private const val KEY_PC_HOST = "pc_host"
+        private const val KEY_REMOTE_VERSION_CODE = "remote_version_code"
     }
 }

@@ -35,6 +35,7 @@ fun FitnessScreen(viewModel: FitnessViewModel = viewModel()) {
         label = "fitRefresh"
     )
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize()) {
         Surface(color = MaterialTheme.colorScheme.background, shadowElevation = 1.dp) {
             Row(
@@ -108,14 +109,20 @@ fun FitnessScreen(viewModel: FitnessViewModel = viewModel()) {
                             fontWeight = FontWeight.Bold, color = Color(0xFFEF4444),
                             modifier = Modifier.padding(top = 8.dp, bottom = 12.dp)
                         )
-                        line.startsWith("## ") -> Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFFEF4444).copy(alpha = 0.1f),
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                        ) {
-                            Text(line.removePrefix("## ").trim(),
-                                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+                        line.startsWith("## ") -> {
+                            val title = line.removePrefix("## ").trim()
+                            val isNutrition = title.contains("热量") || title.contains("饮食")
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isNutrition) Color(0xFFF59E0B).copy(alpha = 0.15f)
+                                        else Color(0xFFEF4444).copy(alpha = 0.1f),
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                            ) {
+                                Text(title,
+                                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
+                                    color = if (isNutrition) Color(0xFFD97706) else Color(0xFFEF4444),
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+                            }
                         }
                         line.startsWith("- [ ] ") -> Card(
                             shape = RoundedCornerShape(10.dp),
@@ -146,8 +153,44 @@ fun FitnessScreen(viewModel: FitnessViewModel = viewModel()) {
                         else -> Text(line, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                     }
                 }
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(80.dp))
             }
         }
-    }
+        } // end Column
+
+        // 底部训练笔记栏
+        var noteInput by remember { mutableStateOf("") }
+        Surface(
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
+            shadowElevation = 8.dp,
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = noteInput,
+                    onValueChange = { noteInput = it },
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("吃的/配重/问Agent…") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Button(
+                    onClick = {
+                        if (noteInput.isNotBlank()) {
+                            viewModel.askAgent(noteInput.trim())
+                            noteInput = ""
+                        }
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
+                ) {
+                    Text("发")
+                }
+            }
+        }
+    } // end Surface & Box
 }

@@ -59,7 +59,7 @@ class ThoughtRepository(private val dao: ThoughtDao) {
         val processedDir = File(repoDir, "processed")
         if (!processedDir.exists()) return
 
-        processedDir.walkTopDown().filter { it.isFile && it.extension == "md" }.forEach { file ->
+        processedDir.walkTopDown().filter { it.isFile && it.extension == "md" && !it.name.endsWith(".reply.md") }.forEach { file ->
             val id = file.nameWithoutExtension
             val entry = dao.getById(id)
             if (entry != null) {
@@ -139,19 +139,19 @@ class ThoughtRepository(private val dao: ThoughtDao) {
     fun loadAllFromFiles(repoDir: File): List<ThoughtEntry> {
         val entries = mutableListOf<ThoughtEntry>()
 
-        // 扫描 inbox/
+        // 先扫描 processed/（已处理条目优先）
+        val processedDir = File(repoDir, "processed")
+        if (processedDir.exists()) {
+            processedDir.walkTopDown().filter { it.isFile && it.extension == "md" && !it.name.endsWith(".reply.md") }.forEach { file ->
+                entries.add(parseEntryFromFile(file, "processed"))
+            }
+        }
+
+        // 再扫描 inbox/（只保留不在 processed 中的）
         val inboxDir = File(repoDir, "inbox")
         if (inboxDir.exists()) {
             inboxDir.listFiles { f -> f.extension == "md" }?.forEach { file ->
                 entries.add(parseEntryFromFile(file, "inbox"))
-            }
-        }
-
-        // 扫描 processed/
-        val processedDir = File(repoDir, "processed")
-        if (processedDir.exists()) {
-            processedDir.walkTopDown().filter { it.isFile && it.extension == "md" }.forEach { file ->
-                entries.add(parseEntryFromFile(file, "processed"))
             }
         }
 

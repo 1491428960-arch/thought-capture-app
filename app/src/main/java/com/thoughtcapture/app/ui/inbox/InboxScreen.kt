@@ -149,11 +149,19 @@ fun ThoughtEntryCard(
         if (today == entryDay) "今天 " + SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(entry.createdAt))
         else dateFormat.format(Date(entry.createdAt))
     }
-    val (typeIcon, typeLabel, iconColor) = when (entry.type) {
-        "voice" -> Triple(Icons.Default.Mic, "语音", Color(0xFF8B5CF6))
-        "photo" -> Triple(Icons.Default.Image, "图片", Color(0xFFF59E0B))
-        "brief" -> Triple(Icons.Default.CalendarToday, "规划", Color(0xFF10B981))
-        else -> Triple(Icons.Default.Edit, "文字", Color(0xFF2563EB))
+    val (typeIcon, typeLabel, iconColor) = when {
+        entry.type == "voice" -> Triple(Icons.Default.Mic, "语音", Color(0xFF8B5CF6))
+        entry.type == "photo" -> Triple(Icons.Default.Image, "图片", Color(0xFFF59E0B))
+        entry.type == "brief" -> Triple(Icons.Default.CalendarToday, "规划", Color(0xFF10B981))
+        entry.type == "practice" -> Triple(Icons.Default.School, "练习", Color(0xFFF59E0B))
+        entry.content.contains("[健身]") -> Triple(Icons.Default.FitnessCenter, "健身", Color(0xFFEF4444))
+        entry.tags.contains("考公") -> Triple(Icons.Default.MenuBook, "考公", Color(0xFF2563EB))
+        entry.tags.contains("健身") -> Triple(Icons.Default.FitnessCenter, "健身", Color(0xFFEF4444))
+        entry.tags.contains("技术") -> Triple(Icons.Default.Code, "技术", Color(0xFF6366F1))
+        entry.tags.contains("计划") -> Triple(Icons.Default.CalendarMonth, "计划", Color(0xFF10B981))
+        entry.tags.contains("批改") -> Triple(Icons.Default.RateReview, "批改", Color(0xFFF59E0B))
+        entry.status == "processed" -> Triple(Icons.Default.CheckCircle, "已整理", Color(0xFF10B981))
+        else -> Triple(Icons.Default.ChatBubbleOutline, "想法", Color(0xFF64748B))
     }
 
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -223,13 +231,13 @@ fun ThoughtEntryCard(
             Spacer(Modifier.width(4.dp))
             IconButton(
                 onClick = { showDeleteConfirm = true },
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(40.dp)
             ) {
                 Icon(
-                    Icons.Default.Close,
+                    Icons.Default.Delete,
                     "删除",
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
                 )
             }
         }

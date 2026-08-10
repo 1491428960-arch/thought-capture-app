@@ -23,6 +23,7 @@ class ReviewViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             if (app.gitSync.canSync()) {
+                app.gitSync.pushWithRetry("sync: 刷新前同步")
                 app.gitSync.pull()
             }
             loadAvailableReviews()
@@ -35,6 +36,7 @@ class ReviewViewModel(application: Application) : AndroidViewModel(application) 
     private fun loadTodayReview() {
         viewModelScope.launch {
             if (app.gitSync.canSync()) {
+                app.gitSync.pushWithRetry("sync: 刷新前同步")
                 app.gitSync.pull()
             }
             loadAvailableReviews()
@@ -71,6 +73,27 @@ class ReviewViewModel(application: Application) : AndroidViewModel(application) 
             .filter { it.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) }
             .sortedDescending()
         _uiState.value = _uiState.value.copy(availableReviews = dates)
+    }
+
+    fun toggleCheckbox(lineIndex: Int) {
+        viewModelScope.launch {
+            val date = _uiState.value.date
+            val reviewFile = File(app.gitSync.getRepoDir(), "review/$date-review.md")
+            if (!reviewFile.exists()) return@launch
+            val lines = reviewFile.readText().lines().toMutableList()
+            if (lineIndex >= lines.size) return@launch
+            val line = lines[lineIndex]
+            lines[lineIndex] = when {
+                line.trimStart().startsWith("- [ ] ") -> line.replace("- [ ] ", "- [x] ")
+                line.trimStart().startsWith("- [x] ") -> line.replace("- [x] ", "- [ ] ")
+                else -> return@launch
+            }
+            reviewFile.writeText(lines.joinToString("\n"))
+            _uiState.value = _uiState.value.copy(content = reviewFile.readText())
+            launch {
+                if (app.gitSync.canSync()) app.gitSync.pushWithRetry("review: $date 打卡")
+            }
+        }
     }
 }
 

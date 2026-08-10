@@ -41,6 +41,7 @@ fun PlanScreen(
         label = "refreshRotation"
     )
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize()) {
             // 顶栏
             Surface(color = MaterialTheme.colorScheme.background, shadowElevation = 1.dp) {
@@ -125,7 +126,7 @@ fun PlanScreen(
             } else {
                 Column(
                     modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                        .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 72.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     uiState.content!!.lines().forEachIndexed { index, rawLine ->
@@ -214,6 +215,43 @@ fun PlanScreen(
             }
         }
 
+    // 底部小结输入栏
+    var summaryInput by remember { mutableStateOf("") }
+    Surface(
+        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
+        shadowElevation = 8.dp,
+        color = MaterialTheme.colorScheme.surface
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = summaryInput,
+                onValueChange = { summaryInput = it },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text("今日小结…") },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Button(
+                onClick = {
+                    if (summaryInput.isNotBlank()) {
+                        scope.launch {
+                            viewModel.addSummary(summaryInput.trim())
+                            summaryInput = ""
+                        }
+                    }
+                },
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Text("记")
+            }
+        }
+    }
+
     // 删除确认
     if (showDeleteConfirm) {
         AlertDialog(
@@ -231,6 +269,7 @@ fun PlanScreen(
             }
         )
     }
+    } // end Box
 }
 
 @Composable

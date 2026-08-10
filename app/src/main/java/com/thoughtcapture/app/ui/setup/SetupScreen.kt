@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.thoughtcapture.app.util.VersionManager
 import kotlinx.coroutines.launch
 
 @Composable
@@ -100,6 +101,18 @@ fun SetupScreen(
             )
         }
 
+        Spacer(modifier = Modifier.height(12.dp))
+
+        var pcHost by remember { mutableStateOf(app.prefs.pcHost ?: "") }
+        OutlinedTextField(
+            value = pcHost,
+            onValueChange = { pcHost = it; app.prefs.pcHost = it.ifBlank { null } },
+            label = { Text("PC 地址（即时响应）") },
+            placeholder = { Text("如：192.168.x.x") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
@@ -141,6 +154,56 @@ fun SetupScreen(
         error?.let {
             Spacer(modifier = Modifier.height(12.dp))
             Text(it, color = MaterialTheme.colorScheme.error)
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 版本信息
+        val versionManager = remember {
+            VersionManager(context, app.prefs, app.gitSync.getRepoDir())
+        }
+        var updateInfo by remember { mutableStateOf<VersionManager.VersionInfo?>(null) }
+
+        Text(
+            "想法捕捉 v1.0",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        TextButton(onClick = {
+            scope.launch {
+                val info = versionManager.checkForUpdate()
+                updateInfo = info
+            }
+        }) {
+            Text("检查更新")
+        }
+
+        updateInfo?.let { info ->
+            Spacer(modifier = Modifier.height(8.dp))
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            ) {
+                Column(Modifier.padding(12.dp)) {
+                    Text("新版本 ${info.version}", fontWeight = FontWeight.Bold)
+                    if (info.changelog.isNotBlank()) {
+                        Text(info.changelog, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Button(onClick = {
+                        versionManager.startDownload(info)
+                        updateInfo = null
+                    }) {
+                        Text("下载更新")
+                    }
+                }
+            }
         }
     }
 }

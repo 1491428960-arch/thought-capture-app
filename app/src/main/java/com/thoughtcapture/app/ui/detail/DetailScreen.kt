@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -31,7 +32,13 @@ fun DetailScreen(
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     LaunchedEffect(entryId) {
-        entry = app.repository.getById(entryId)
+        // 优先从文件系统加载（反映Agent处理后的最新状态）
+        val entries = app.repository.loadAllFromFiles(app.gitSync.getRepoDir())
+        entry = entries.find { it.id == entryId }
+        // 文件系统没找到再查Room DB
+        if (entry == null) {
+            entry = app.repository.getById(entryId)
+        }
     }
 
     Scaffold(
@@ -246,6 +253,13 @@ fun DetailScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteConfirm = false
+                    val entry = entry // capture current entry
+                    if (entry != null) {
+                        kotlinx.coroutines.MainScope().launch {
+                            app.repository.deleteById(entry.id)
+                            app.gitSync.pushWithRetry("delete: ${entry.id}")
+                        }
+                    }
                     onDelete()
                 }) {
                     Text("删除", color = MaterialTheme.colorScheme.error)

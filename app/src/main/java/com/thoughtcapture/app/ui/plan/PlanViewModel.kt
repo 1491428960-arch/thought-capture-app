@@ -25,6 +25,8 @@ class PlanViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             if (app.gitSync.canSync()) {
+                // 先推送本地改动（打勾、小结），再拉取远程
+                app.gitSync.pushWithRetry("sync: 刷新前同步")
                 app.gitSync.pull()
                 app.repository.syncProcessedStatus(app.gitSync.getRepoDir())
             }
@@ -76,40 +78,61 @@ class PlanViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = _uiState.value.copy(availablePlans = dates)
     }
 
+    fun addSummary(text: String) {
+        val content = _uiState.value.content ?: ""
+        val newContent = content + "\n\n## 小结\n\n- " + text
+        _uiState.value = _uiState.value.copy(content = newContent)
+        viewModelScope.launch {
+            val date = _uiState.value.date
+            val planFile = File(app.gitSync.getRepoDir(), "plans/$date-plan.md")
+            planFile.writeText(newContent)
+            if (app.gitSync.canSync()) app.gitSync.pushWithRetry("summary: $date 小结")
+        }
+    }
+
     fun deletePlan(date: String) {
-        val planFile = File(app.gitSync.getRepoDir(), "plans/$date-plan.md")
-        if (planFile.exists()) planFile.delete()
-        loadAvailablePlans()
-        if (date == _uiState.value.selectedDate) {
-            loadPlan(date)
+        viewModelScope.launch {
+            val planFile = File(app.gitSync.getRepoDir(), "plans/$date-plan.md")
+            if (planFile.exists()) planFile.delete()
+            // 推到 GitHub，防止下次 pull 复活
+            if (app.gitSync.canSync()) {
+                app.gitSync.pushWithRetry("delete plan: $date")
+            }
+            loadAvailablePlans()
+            // 如果删的是当前显示的日期，自动切到最近一个
+            if (date == _uiState.value.selectedDate) {
+                val next = _uiState.value.availablePlans.firstOrNull()
+                if (next != null) {
+                    _uiState.value = _uiState.value.copy(selectedDate = next)
+                    loadPlan(next)
+                } else {
+                    _uiState.value = _uiState.value.copy(content = null, date = "")
+                }
+            }
         }
     }
 
     fun toggleCheckbox(lineIndex: Int) {
+        val content = _uiState.value.content ?: return
+        val lines = content.lines().toMutableList()
+        if (lineIndex >= lines.size) return
+
+        val line = lines[lineIndex]
+        lines[lineIndex] = when {
+            line.trimStart().startsWith("- [ ] ") -> line.replace("- [ ] ", "- [x] ")
+            line.trimStart().startsWith("- [x] ") -> line.replace("- [x] ", "- [ ] ")
+            else -> return
+        }
+
+        // 先更新 UI（即时响应）
+        _uiState.value = _uiState.value.copy(content = lines.joinToString("\n"))
+
+        // 后台保存+推送
         viewModelScope.launch {
             val date = _uiState.value.date
             val planFile = File(app.gitSync.getRepoDir(), "plans/$date-plan.md")
-            if (!planFile.exists()) return@launch
-
-            val lines = planFile.readText().lines().toMutableList()
-            if (lineIndex >= lines.size) return@launch
-
-            val line = lines[lineIndex]
-            lines[lineIndex] = when {
-                line.trimStart().startsWith("- [ ] ") -> line.replace("- [ ] ", "- [x] ")
-                line.trimStart().startsWith("- [x] ") -> line.replace("- [x] ", "- [ ] ")
-                else -> return@launch
-            }
-
             planFile.writeText(lines.joinToString("\n"))
-            _uiState.value = _uiState.value.copy(content = planFile.readText())
-
-            // 异步推送到 GitHub
-            launch {
-                if (app.gitSync.canSync()) {
-                    app.gitSync.pushWithRetry("update: 计划 $date 勾选更新")
-                }
-            }
+            if (app.gitSync.canSync()) app.gitSync.pushWithRetry("update: 计划 $date 勾选")
         }
     }
 }

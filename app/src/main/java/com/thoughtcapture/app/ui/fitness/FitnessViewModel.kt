@@ -22,9 +22,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     fun refresh() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
-            if (app.gitSync.canSync()) {
-                app.gitSync.pull()
-            }
+            if (app.gitSync.canSync()) { app.gitSync.pushWithRetry("sync: 刷新前同步"); app.gitSync.pull() }
             loadAvailableDates()
             loadPlan(_uiState.value.selectedDate.ifEmpty {
                 SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
@@ -34,7 +32,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
     private fun loadToday() {
         viewModelScope.launch {
-            if (app.gitSync.canSync()) app.gitSync.pull()
+            if (app.gitSync.canSync()) { app.gitSync.pushWithRetry("sync: 刷新前同步"); app.gitSync.pull() }
             loadAvailableDates()
             val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
             _uiState.value = _uiState.value.copy(selectedDate = today)
@@ -72,23 +70,65 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun toggleCheckbox(lineIndex: Int) {
+        val content = _uiState.value.content ?: return
+        val lines = content.lines().toMutableList()
+        if (lineIndex >= lines.size) return
+        val line = lines[lineIndex]
+        lines[lineIndex] = when {
+            line.trimStart().startsWith("- [ ] ") -> line.replace("- [ ] ", "- [x] ")
+            line.trimStart().startsWith("- [x] ") -> line.replace("- [x] ", "- [ ] ")
+            else -> return
+        }
+        _uiState.value = _uiState.value.copy(content = lines.joinToString("\n"))
         viewModelScope.launch {
             val date = _uiState.value.date
             val planFile = File(app.gitSync.getRepoDir(), "fitness/plans/$date-plan.md")
-            if (!planFile.exists()) return@launch
-            val lines = planFile.readText().lines().toMutableList()
-            if (lineIndex >= lines.size) return@launch
-            val line = lines[lineIndex]
-            lines[lineIndex] = when {
-                line.trimStart().startsWith("- [ ] ") -> line.replace("- [ ] ", "- [x] ")
-                line.trimStart().startsWith("- [x] ") -> line.replace("- [x] ", "- [ ] ")
-                else -> return@launch
-            }
             planFile.writeText(lines.joinToString("\n"))
-            _uiState.value = _uiState.value.copy(content = planFile.readText())
+            if (app.gitSync.canSync()) app.gitSync.pushWithRetry("fitness: $date 打卡")
+        }
+    }
+
+    fun askAgent(question: String) {
+        viewModelScope.launch {
+            val repoDir = app.gitSync.getRepoDir()
+            val inboxDir = File(repoDir, "inbox")
+            inboxDir.mkdirs()
+            val id = SimpleDateFormat("yyyy-MM-dd-HHmmss-SSS", Locale.getDefault()).format(Date())
+            val mdFile = File(inboxDir, "$id.md")
+            mdFile.writeText("---\nid: $id\ntype: text\nstatus: inbox\ntags: []\nsource: app\n---\n\n[健身] $question")
             launch {
-                if (app.gitSync.canSync()) app.gitSync.pushWithRetry("fitness: $date 训练打卡")
+                if (app.gitSync.canSync()) app.gitSync.pushWithRetry("ask: $question")
             }
+        }
+    }
+
+    fun addFoodItem(food: String) {
+        val date = _uiState.value.date
+        val planFile = File(app.gitSync.getRepoDir(), "fitness/plans/$date-plan.md")
+        // 文件不存在则先创建基础模板（同步写，即时响应）
+        if (!planFile.exists()) {
+            planFile.parentFile.mkdirs()
+            planFile.writeText(
+                "# $date 运动计划\n\n" +
+                "> 训练日 | 固定器械+哑铃\n\n" +
+                "## 热量日志\n\n" +
+                "基础代谢 2200kcal | 总消耗 ~2500kcal\n" +
+                "目标摄入 1800-2000kcal | 缺口 400-600kcal\n\n" +
+                "- 早餐：待记录\n- 午餐：待记录\n- 晚餐：待记录\n- 加餐：待记录\n" +
+                "- 今日合计：0 kcal | 总消耗：2500 kcal | 缺口：- kcal\n\n" +
+                "> 告诉Agent吃了什么，帮你算热量\n"
+            )
+        }
+        // 即时写入 + 更新 UI
+        val lines = planFile.readText().lines().toMutableList()
+        val totalIdx = lines.indexOfFirst { it.startsWith("- 今日合计") }
+        val insertAt = if (totalIdx > 0) totalIdx else lines.size
+        lines.add(insertAt, "- ${food.trim()}")
+        planFile.writeText(lines.joinToString("\n"))
+        _uiState.value = _uiState.value.copy(content = planFile.readText())
+        // 后台推送
+        viewModelScope.launch {
+            if (app.gitSync.canSync()) app.gitSync.pushWithRetry("fitness: $date 饮食")
         }
     }
 }

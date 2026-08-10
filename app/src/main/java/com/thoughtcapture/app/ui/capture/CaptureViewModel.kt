@@ -90,6 +90,28 @@ class CaptureViewModel(application: Application) : AndroidViewModel(application)
                 launch {
                     if (app.gitSync.canSync()) {
                         app.gitSync.pushWithRetry("add: 新想法 ${app.repository.generateId()}")
+                        // 通知 PC 即时处理（带重试）
+                        val pcHost = app.prefs.pcHost
+                        if (!pcHost.isNullOrBlank()) {
+                            var notified = false
+                            for (retry in 0..2) {
+                                try {
+                                    val url = java.net.URL("http://${pcHost}:18765/new")
+                                    val conn = url.openConnection() as java.net.HttpURLConnection
+                                    conn.requestMethod = "POST"
+                                    conn.connectTimeout = 2000
+                                    conn.readTimeout = 2000
+                                    conn.doOutput = true
+                                    conn.outputStream.write("ping".toByteArray())
+                                    conn.responseCode
+                                    conn.disconnect()
+                                    notified = true
+                                    break
+                                } catch (_: Exception) {
+                                    if (retry < 2) Thread.sleep(500)
+                                }
+                            }
+                        }
                     }
                 }
 

@@ -37,6 +37,9 @@ class ThoughtCaptureApp : Application() {
                 delay(3 * 60 * 1000L) // 3 分钟
                 try {
                     if (prefs.isConfigured && gitSync.canSync()) {
+                        // 先推送断网期间积压的本地改动
+                        gitSync.pushWithRetry("sync: 断网恢复补推")
+                        // 再拉取远程最新状态
                         gitSync.pull()
                         repository.syncProcessedStatus(gitSync.getRepoDir())
                     }
